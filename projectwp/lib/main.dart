@@ -3,7 +3,6 @@ import 'package:logger/logger.dart';
 import 'package:dartssh2/dartssh2.dart';
 import 'dart:io';
 import 'package:path/path.dart' as p;
-import 'package:flutter/widget_previews.dart';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -48,7 +47,7 @@ void main() {
 
 Future<void> getServers() async {
   final String response = await rootBundle.loadString(
-    'assets/json/servers.json',
+    'assets/json/servers.json', // aqui se manejan credenciales
   );
 
   List<ServerInfo> _servers = [];
@@ -96,7 +95,7 @@ class ServerInfo {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson() { // extrae info del json
     return {
       'id': id,
       'name': name,
@@ -142,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
   late TextEditingController _keyController;
 
   @override
-  void initState() {
+  void initState() { // texto que se ve en el menu princ
     super.initState();
     _servernameController = TextEditingController(text: "Laura");
     _userController = TextEditingController(text: "ltorocordero");
@@ -157,10 +156,6 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  void _getCurrentFiles(String route) async {
-    await sshManager.listFiles(route);
-    setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -501,13 +496,14 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+// funcioneeees
 String formatPermissions(int? mode) {
   if (mode == null) return '---------';
 
   final bits = mode & 0x1FF;
 
   String res = '';
-  final chars = ['r', 'w', 'x'];
+  final chars = ['r', 'w', 'x']; 
 
   for (int i = 0; i < 9; i++) {
     if ((bits >> (8 - i)) & 1 == 1) {
@@ -520,7 +516,7 @@ String formatPermissions(int? mode) {
   return res;
 }
 
-class SSHManager {
+class SSHManager { 
   SSHClient? _client;
   SftpClient? _sftp;
 
@@ -529,13 +525,13 @@ class SSHManager {
   Future<bool> connect(String username, String ip, int port, String key) async {
     try {
       logger.i("Attempting to connect to $ip:$port");
-      final socket = await SSHSocket.connect(ip, port);
+      final socket = await SSHSocket.connect(ip, port); //se conecta a la ip y puerto del servidor
 
       _client = SSHClient(
         socket,
         username: username,
         keepAliveInterval: const Duration(seconds: 30),
-        identities: [...SSHKeyPair.fromPem(await getPrivateKey(key))],
+        identities: [...SSHKeyPair.fromPem(await getPrivateKey(key))], // lee key para acceder correctamente
       );
 
       logger.i("Connected to $ip:$port");
@@ -547,7 +543,7 @@ class SSHManager {
     }
   }
 
-  Future<void> switchPermission(
+  Future<void> switchPermission( // control de permisos para ficheros y archivos (lectura (r) escritura (w) ejecucion(x))
     String filePath,
     String permission,
     bool add,
@@ -614,9 +610,9 @@ class SSHManager {
     if (_client == null) return;
 
     try {
-      _sftp ??= await _client!.sftp();
+      _sftp ??= await _client!.sftp(); // SFTP: permite hacer operaciones con archivos sobre la conexión SSH
 
-      await _sftp!.rename(oldPath, newPath);
+      await _sftp!.rename(oldPath, newPath); //renombra el path
       logger.i("Archivo renombrado de $oldPath a $newPath");
     } catch (e) {
       logger.e("Error renombrando archivo: $e");
@@ -630,14 +626,14 @@ class SSHManager {
     if (_client == null) return;
 
     try {
-      _sftp ??= await _client!.sftp();
-      final stat = await _sftp!.stat(remotePath);
+      _sftp ??= await _client!.sftp(); // comprueba conexion activa de ssh
+      final stat = await _sftp!.stat(remotePath); // info de la carpeta
       final downloadsDir = await getDownloadsDirectory();
 
       if (stat.isDirectory) {
-        await _downloadFolderAsZip(remotePath, downloadsDir!.path);
+        await _downloadFolderAsZip(remotePath, downloadsDir!.path); // aqui descargo zipppp
       } else {
-        await _downloadSingleFile(remotePath, downloadsDir!.path);
+        await _downloadSingleFile(remotePath, downloadsDir!.path); // archivo solo
       }
     } catch (e) {
       logger.e("Error en descarga: $e");
@@ -648,15 +644,15 @@ class SSHManager {
     if (_client == null) return;
 
     try {
-      _sftp ??= await _client!.sftp();
+      _sftp ??= await _client!.sftp(); // conecion ssh ok?
 
       final localFile = File(localPath);
-      final fileName = p.basename(localPath);
-      final remoteFilePath = p.posix.join(remotePath, fileName);
+      final fileName = p.basename(localPath); // obtiene nombre archivo
+      final remoteFilePath = p.posix.join(remotePath, fileName); // construye ruta 
 
       logger.i("Subiendo archivo: $fileName a $remoteFilePath");
 
-      final remoteFile = await _sftp!.open(
+      final remoteFile = await _sftp!.open( // abre y crea el archivo
         remoteFilePath,
         mode: SftpFileOpenMode.create | SftpFileOpenMode.write,
       );
@@ -665,7 +661,7 @@ class SSHManager {
         (list) => Uint8List.fromList(list),
       );
 
-      await remoteFile.write(stream);
+      await remoteFile.write(stream); //lee archivo en trozos (stream) utilizando sus bytes y escribe en remoto
 
       logger.i("Archivo subido exitosamente: $remoteFilePath");
     } catch (e) {
@@ -674,7 +670,7 @@ class SSHManager {
     }
   }
 
-  Future<void> _downloadSingleFile(String remotePath, String localDir) async {
+  Future<void> _downloadSingleFile(String remotePath, String localDir) async { // el download fuciona igual que el upload, pero al reves 
     final fileName = _remotePathContext.basename(remotePath);
     final localPath = p.join(localDir, fileName);
 
@@ -684,13 +680,13 @@ class SSHManager {
     final localFile = File(localPath);
     final ios = localFile.openWrite();
 
-    await ios.addStream(remoteFile.read());
+    await ios.addStream(remoteFile.read()); //lee archivo en trozos (stream) utilizando sus bytes y escribe en local
     await ios.close();
 
     logger.i("Archivo guardado en: $localPath");
   }
 
-  Future<void> _downloadFolderAsZip(String remotePath, String localDir) async {
+  Future<void> _downloadFolderAsZip(String remotePath, String localDir) async { // descargar una carpeta de remoto 
     final folderName = p.posix.basename(remotePath);
     final zipName =
         "${folderName}_${DateTime.now().millisecondsSinceEpoch}.zip";
@@ -699,7 +695,7 @@ class SSHManager {
     final localZipPath = p.join(localDir, zipName);
 
     try {
-      logger.i('Comprimiendo carpeta en el servidor...');
+      logger.i('Comprimiendo carpeta en el servidor...'); // se crea el zip de manera interna
 
       final parentDir = p.posix.dirname(remotePath);
 
@@ -709,7 +705,7 @@ class SSHManager {
 
       _sftp ??= await _client!.sftp();
 
-      logger.i('Descargando ZIP...');
+      logger.i('Descargando ZIP...'); // se descarga el zip
 
       final remoteFile = await _sftp!.open(zipName);
       final localFile = File(localZipPath);
@@ -718,7 +714,7 @@ class SSHManager {
       await ios.addStream(remoteFile.read());
       await ios.close();
 
-      logger.i('Descomprimiendo localmente...');
+      logger.i('Descomprimiendo localmente...'); // el server lo descomprime (esto el usuario no lo ve)
 
       final bytes = File(localZipPath).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
@@ -738,7 +734,7 @@ class SSHManager {
         }
       }
 
-      logger.i('Limpiando archivos temporales...');
+      logger.i('Limpiando archivos temporales...'); // borra el zip ya que se usaba como archivo temporal
 
       await _client!.execute('rm "$remoteZipPath"');
 
@@ -746,7 +742,7 @@ class SSHManager {
         await File(localZipPath).delete();
       }
 
-      logger.i('¡Carpeta descargada y descomprimida con éxito!');
+      logger.i('¡Carpeta descargada y descomprimida con éxito!'); // carpeta en local siendo NO zip :)
     } catch (e) {
       logger.e('Fallo en proceso ZIP: $e');
       rethrow;
@@ -759,7 +755,7 @@ class SSHManager {
     try {
       _sftp ??= await _client!.sftp();
 
-      await _sftp!.remove(filePath);
+      await _sftp!.remove(filePath); // removeeee
 
       logger.i("Archivo eliminado: $filePath");
     } catch (e) {
@@ -768,89 +764,7 @@ class SSHManager {
     }
   }
 
-  Future<void> downloadAsZip(String remotePath) async {
-    if (_client == null) return;
-
-    final String baseName = p.basename(remotePath);
-    final String timeStamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final String zipName = "${baseName}_$timeStamp.zip";
-
-    _sftp ??= await _client!.sftp();
-
-    final downloadsDir = await getDownloadsDirectory();
-    final localZipPath = p.join(downloadsDir!.path, zipName);
-
-    try {
-      logger.i('Comprimiendo en el servidor...');
-
-      final parentDir = p.dirname(remotePath);
-      final folderName = p.basename(remotePath);
-
-      final safeParent = parentDir.replaceAll('"', '\\"');
-      final safeFolder = folderName.replaceAll('"', '\\"');
-      final safeZipName = zipName.replaceAll('"', '\\"');
-
-      final zipCommand =
-          'cd "$safeParent" && zip -r "$safeZipName" "$safeFolder" && pwd';
-
-      logger.i('Ejecutando comando: $zipCommand');
-
-      final result = await _client!.execute(zipCommand);
-
-      logger.i('Resultado del comando: $result');
-
-      final remoteZipPath = p.join(parentDir, zipName);
-
-      logger.i('Intentando abrir ZIP desde: $remoteZipPath');
-      logger.i('Descargando ZIP desde el servidor...');
-
-      final remoteFile = await _sftp!.open(remoteZipPath);
-      final localFile = File(localZipPath);
-      final ios = localFile.openWrite();
-
-      await ios.addStream(remoteFile.read());
-      await ios.close();
-
-      final extractDir = Directory(p.join(downloadsDir.path, baseName));
-
-      if (!extractDir.existsSync()) {
-        extractDir.createSync(recursive: true);
-      }
-
-      logger.i('Descomprimiendo localmente en ${extractDir.path}...');
-
-      final bytes = File(localZipPath).readAsBytesSync();
-      final archive = ZipDecoder().decodeBytes(bytes);
-
-      for (final file in archive) {
-        final filename = file.name;
-        final destPath = p.join(extractDir.path, filename);
-
-        if (file.isFile) {
-          File(destPath)
-            ..createSync(recursive: true)
-            ..writeAsBytesSync(file.content as List<int>);
-        } else {
-          Directory(destPath).createSync(recursive: true);
-        }
-      }
-
-      await _client!.execute('rm "${remoteZipPath}"').catchError((_) => {});
-
-      if (await File(localZipPath).exists()) {
-        await File(localZipPath).delete();
-      }
-
-      logger.i('¡Éxito! Archivos guardados en ${extractDir.path}');
-    } catch (e) {
-      logger.e('Error descargando/comprimiendo: $e');
-
-      final zipPath = p.join(p.dirname(remotePath), "${baseName}_*.zip");
-      await _client!.execute('rm $zipPath').catchError((_) => {});
-    }
-  }
-
-  Future<void> listFiles(String path) async {
+  Future<void> listFiles(String path) async { // enlista contenido blablalbal
     if (_client == null) return;
 
     try {
@@ -876,22 +790,22 @@ class SSHManager {
     }
   }
 
-  Future<String> getPrivateKey(String file) async {
+  Future<String> getPrivateKey(String file) async { // buscador pa la clave
     String home =
-        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']!;
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']!; 
 
     String keyPath = p.join(home, '.ssh', file);
 
     File keyFile = File(keyPath);
 
     if (await keyFile.exists()) {
-      return await keyFile.readAsString();
+      return await keyFile.readAsString(); // si la encuentra, la devuelve como un str
     } else {
       throw Exception("Private key file not found: $keyPath");
     }
   }
 
-  Future<String?> checkServerType(String path) async {
+  Future<String?> checkServerType(String path) async { // con esto ejecuta las carpetas node.js
     if (_client == null) return null;
 
     try {
@@ -900,12 +814,12 @@ class SSHManager {
       final items = await _sftp!.listdir(path);
 
       for (final item in items) {
-        if (item.filename == 'package.json') return 'node';
+        if (item.filename == 'package.json') return 'node'; // si hay package.json -> npm run ..
 
         if (item.filename == 'pom.xml' ||
             item.filename == 'build.gradle' ||
             item.filename == 'build.gradle.kts') {
-          return 'java';
+          return 'java'; // lo mismo pero con java 
         }
       }
 
@@ -916,7 +830,7 @@ class SSHManager {
     }
   }
 
-  Future<void> executeCommand(String command) async {
+  Future<void> executeCommand(String command) async { // ejecuta comandos generales como estado del server (start, stop, restart)
     if (_client == null) return;
 
     try {
@@ -937,9 +851,9 @@ class SSHManager {
     } catch (e) {
       logger.e("Error executing command: $e");
     }
-  }
+  }// tambien ejecuta para los zip
 
-  Future<bool> isServerRunning(String type, String path) async {
+  Future<bool> isServerRunning(String type, String path) async { // server on?
     if (_client == null) return false;
 
     try {
@@ -1676,14 +1590,14 @@ class _FileExplorerPageState extends State<FileExplorerPage> {
   }
 }
 
-bool isImageFile(String fileName) {
+bool isImageFile(String fileName) { // detecta imagense 
   final imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
   final extension = p.extension(fileName).toLowerCase();
 
   return imageExtensions.contains(extension);
 }
 
-void changeServerName(int serverId, String newName) {
+void changeServerName(int serverId, String newName) { // cambiar info de pantalla de entrada
   for (var server in servers) {
     if (server.id == serverId) {
       server = ServerInfo(
@@ -1702,7 +1616,7 @@ void changeServerName(int serverId, String newName) {
   }
 }
 
-Future<void> saveServers(List<ServerInfo> listaServers) async {
+Future<void> saveServers(List<ServerInfo> listaServers) async { // guarda los datos del servers.json
   try {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/servers.json');
