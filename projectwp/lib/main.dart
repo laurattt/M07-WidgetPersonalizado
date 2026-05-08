@@ -95,7 +95,8 @@ class ServerInfo {
     );
   }
 
-  Map<String, dynamic> toJson() { // extrae info del json
+  Map<String, dynamic> toJson() {
+    // extrae info del json
     return {
       'id': id,
       'name': name,
@@ -141,7 +142,8 @@ class _MyHomePageState extends State<MyHomePage> {
   late TextEditingController _keyController;
 
   @override
-  void initState() { // texto que se ve en el menu princ
+  void initState() {
+    // texto que se ve en el menu princ
     super.initState();
     _servernameController = TextEditingController(text: "Laura");
     _userController = TextEditingController(text: "ltorocordero");
@@ -155,7 +157,6 @@ class _MyHomePageState extends State<MyHomePage> {
     await getServers();
     setState(() {});
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -503,7 +504,7 @@ String formatPermissions(int? mode) {
   final bits = mode & 0x1FF;
 
   String res = '';
-  final chars = ['r', 'w', 'x']; 
+  final chars = ['r', 'w', 'x'];
 
   for (int i = 0; i < 9; i++) {
     if ((bits >> (8 - i)) & 1 == 1) {
@@ -516,7 +517,7 @@ String formatPermissions(int? mode) {
   return res;
 }
 
-class SSHManager { 
+class SSHManager {
   SSHClient? _client;
   SftpClient? _sftp;
 
@@ -525,13 +526,18 @@ class SSHManager {
   Future<bool> connect(String username, String ip, int port, String key) async {
     try {
       logger.i("Attempting to connect to $ip:$port");
-      final socket = await SSHSocket.connect(ip, port); //se conecta a la ip y puerto del servidor
+      final socket = await SSHSocket.connect(
+        ip,
+        port,
+      ); //se conecta a la ip y puerto del servidor
 
       _client = SSHClient(
         socket,
         username: username,
         keepAliveInterval: const Duration(seconds: 30),
-        identities: [...SSHKeyPair.fromPem(await getPrivateKey(key))], // lee key para acceder correctamente
+        identities: [
+          ...SSHKeyPair.fromPem(await getPrivateKey(key)),
+        ], // lee key para acceder correctamente
       );
 
       logger.i("Connected to $ip:$port");
@@ -543,7 +549,8 @@ class SSHManager {
     }
   }
 
-  Future<void> switchPermission( // control de permisos para ficheros y archivos (lectura (r) escritura (w) ejecucion(x))
+  Future<void> switchPermission(
+    // control de permisos para ficheros y archivos (lectura (r) escritura (w) ejecucion(x))
     String filePath,
     String permission,
     bool add,
@@ -610,7 +617,8 @@ class SSHManager {
     if (_client == null) return;
 
     try {
-      _sftp ??= await _client!.sftp(); // SFTP: permite hacer operaciones con archivos sobre la conexión SSH
+      _sftp ??= await _client!
+          .sftp(); // SFTP: permite hacer operaciones con archivos sobre la conexión SSH
 
       await _sftp!.rename(oldPath, newPath); //renombra el path
       logger.i("Archivo renombrado de $oldPath a $newPath");
@@ -631,9 +639,15 @@ class SSHManager {
       final downloadsDir = await getDownloadsDirectory();
 
       if (stat.isDirectory) {
-        await _downloadFolderAsZip(remotePath, downloadsDir!.path); // aqui descargo zipppp
+        await _downloadFolderAsZip(
+          remotePath,
+          downloadsDir!.path,
+        ); // aqui descargo zipppp
       } else {
-        await _downloadSingleFile(remotePath, downloadsDir!.path); // archivo solo
+        await _downloadSingleFile(
+          remotePath,
+          downloadsDir!.path,
+        ); // archivo solo
       }
     } catch (e) {
       logger.e("Error en descarga: $e");
@@ -648,11 +662,15 @@ class SSHManager {
 
       final localFile = File(localPath);
       final fileName = p.basename(localPath); // obtiene nombre archivo
-      final remoteFilePath = p.posix.join(remotePath, fileName); // construye ruta 
+      final remoteFilePath = p.posix.join(
+        remotePath,
+        fileName,
+      ); // construye ruta
 
       logger.i("Subiendo archivo: $fileName a $remoteFilePath");
 
-      final remoteFile = await _sftp!.open( // abre y crea el archivo
+      final remoteFile = await _sftp!.open(
+        // abre y crea el archivo
         remoteFilePath,
         mode: SftpFileOpenMode.create | SftpFileOpenMode.write,
       );
@@ -661,7 +679,9 @@ class SSHManager {
         (list) => Uint8List.fromList(list),
       );
 
-      await remoteFile.write(stream); //lee archivo en trozos (stream) utilizando sus bytes y escribe en remoto
+      await remoteFile.write(
+        stream,
+      ); //lee archivo en trozos (stream) utilizando sus bytes y escribe en remoto
 
       logger.i("Archivo subido exitosamente: $remoteFilePath");
     } catch (e) {
@@ -670,7 +690,8 @@ class SSHManager {
     }
   }
 
-  Future<void> _downloadSingleFile(String remotePath, String localDir) async { // el download fuciona igual que el upload, pero al reves 
+  Future<void> _downloadSingleFile(String remotePath, String localDir) async {
+    // el download fuciona igual que el upload, pero al reves
     final fileName = _remotePathContext.basename(remotePath);
     final localPath = p.join(localDir, fileName);
 
@@ -680,41 +701,63 @@ class SSHManager {
     final localFile = File(localPath);
     final ios = localFile.openWrite();
 
-    await ios.addStream(remoteFile.read()); //lee archivo en trozos (stream) utilizando sus bytes y escribe en local
+    await ios.addStream(
+      remoteFile.read(),
+    ); //lee archivo en trozos (stream) utilizando sus bytes y escribe en local
     await ios.close();
 
     logger.i("Archivo guardado en: $localPath");
   }
 
-  Future<void> _downloadFolderAsZip(String remotePath, String localDir) async { // descargar una carpeta de remoto 
+  Future<void> _downloadFolderAsZip(String remotePath, String localDir) async {
+    // descargar una carpeta de remoto
     final folderName = p.posix.basename(remotePath);
     final zipName =
         "${folderName}_${DateTime.now().millisecondsSinceEpoch}.zip";
 
-    final remoteZipPath = "~/$zipName";
     final localZipPath = p.join(localDir, zipName);
 
     try {
-      logger.i('Comprimiendo carpeta en el servidor...'); // se crea el zip de manera interna
+      logger.i(
+        'Comprimiendo carpeta en el servidor...',
+      ); // se crea el zip de manera interna
+
+      final homeSession = await _client!.execute('echo \$HOME');
+      final homeBytes = await homeSession.stdout.fold<List<int>>(
+        [],
+        (a, b) => a..addAll(b),
+      );
+      final remoteHome = utf8.decode(homeBytes).trim();
+      final remoteZipPath = '$remoteHome/$zipName';
 
       final parentDir = p.posix.dirname(remotePath);
 
-      await _client!.execute(
+      final zipSession = await _client!.execute(
         'cd "$parentDir" && zip -r "$remoteZipPath" "$folderName"',
       );
+      final zipOut = utf8.decode(
+        await zipSession.stdout.fold<List<int>>([], (a, b) => a..addAll(b)),
+      );
+      final zipErr = utf8.decode(
+        await zipSession.stderr.fold<List<int>>([], (a, b) => a..addAll(b)),
+      );
+      logger.i('zip stdout: $zipOut');
+      if (zipErr.isNotEmpty) logger.e('zip stderr: $zipErr');
 
       _sftp ??= await _client!.sftp();
 
-      logger.i('Descargando ZIP...'); // se descarga el zip
+      logger.i('Descargando ZIP desde: $remoteZipPath');
 
-      final remoteFile = await _sftp!.open(zipName);
+      final remoteFile = await _sftp!.open(remoteZipPath);
       final localFile = File(localZipPath);
 
       final ios = localFile.openWrite();
       await ios.addStream(remoteFile.read());
       await ios.close();
 
-      logger.i('Descomprimiendo localmente...'); // el server lo descomprime (esto el usuario no lo ve)
+      logger.i(
+        'Descomprimiendo localmente...',
+      ); // el server lo descomprime (esto el usuario no lo ve)
 
       final bytes = File(localZipPath).readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
@@ -734,7 +777,9 @@ class SSHManager {
         }
       }
 
-      logger.i('Limpiando archivos temporales...'); // borra el zip ya que se usaba como archivo temporal
+      logger.i(
+        'Limpiando archivos temporales...',
+      ); // borra el zip ya que se usaba como archivo temporal
 
       await _client!.execute('rm "$remoteZipPath"');
 
@@ -742,7 +787,9 @@ class SSHManager {
         await File(localZipPath).delete();
       }
 
-      logger.i('¡Carpeta descargada y descomprimida con éxito!'); // carpeta en local siendo NO zip :)
+      logger.i(
+        '¡Carpeta descargada y descomprimida con éxito!',
+      ); // carpeta en local siendo NO zip :)
     } catch (e) {
       logger.e('Fallo en proceso ZIP: $e');
       rethrow;
@@ -764,7 +811,8 @@ class SSHManager {
     }
   }
 
-  Future<void> listFiles(String path) async { // enlista contenido blablalbal
+  Future<void> listFiles(String path) async {
+    // enlista contenido blablalbal
     if (_client == null) return;
 
     try {
@@ -790,22 +838,25 @@ class SSHManager {
     }
   }
 
-  Future<String> getPrivateKey(String file) async { // buscador pa la clave
+  Future<String> getPrivateKey(String file) async {
+    // buscador pa la clave
     String home =
-        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']!; 
+        Platform.environment['HOME'] ?? Platform.environment['USERPROFILE']!;
 
     String keyPath = p.join(home, '.ssh', file);
 
     File keyFile = File(keyPath);
 
     if (await keyFile.exists()) {
-      return await keyFile.readAsString(); // si la encuentra, la devuelve como un str
+      return await keyFile
+          .readAsString(); // si la encuentra, la devuelve como un str
     } else {
       throw Exception("Private key file not found: $keyPath");
     }
   }
 
-  Future<String?> checkServerType(String path) async { // con esto ejecuta las carpetas node.js
+  Future<String?> checkServerType(String path) async {
+    // con esto ejecuta las carpetas node.js
     if (_client == null) return null;
 
     try {
@@ -814,12 +865,13 @@ class SSHManager {
       final items = await _sftp!.listdir(path);
 
       for (final item in items) {
-        if (item.filename == 'package.json') return 'node'; // si hay package.json -> npm run ..
+        if (item.filename == 'package.json')
+          return 'node'; // si hay package.json -> npm run ..
 
         if (item.filename == 'pom.xml' ||
             item.filename == 'build.gradle' ||
             item.filename == 'build.gradle.kts') {
-          return 'java'; // lo mismo pero con java 
+          return 'java'; // lo mismo pero con java
         }
       }
 
@@ -830,7 +882,8 @@ class SSHManager {
     }
   }
 
-  Future<void> executeCommand(String command) async { // ejecuta comandos generales como estado del server (start, stop, restart)
+  Future<void> executeCommand(String command) async {
+    // ejecuta comandos generales como estado del server (start, stop, restart)
     if (_client == null) return;
 
     try {
@@ -851,9 +904,10 @@ class SSHManager {
     } catch (e) {
       logger.e("Error executing command: $e");
     }
-  }// tambien ejecuta para los zip
+  } // tambien ejecuta para los zip
 
-  Future<bool> isServerRunning(String type, String path) async { // server on?
+  Future<bool> isServerRunning(String type, String path) async {
+    // server on?
     if (_client == null) return false;
 
     try {
@@ -889,11 +943,7 @@ class FileDetailPage extends StatefulWidget {
   final SSHManager manager;
   final FileItem file;
 
-  const FileDetailPage({
-    super.key,
-    required this.manager,
-    required this.file,
-  });
+  const FileDetailPage({super.key, required this.manager, required this.file});
 
   @override
   State<FileDetailPage> createState() => _FileDetailPageState();
@@ -997,8 +1047,8 @@ class _FileDetailPageState extends State<FileDetailPage> {
               widget.file.permissions[index] != activeLetter,
             );
 
-            widget.file.permissions = widget.file.permissions[index] ==
-                    activeLetter
+            widget.file.permissions =
+                widget.file.permissions[index] == activeLetter
                 ? widget.file.permissions.replaceRange(index, index + 1, '-')
                 : widget.file.permissions.replaceRange(
                     index,
@@ -1547,10 +1597,7 @@ class _FileExplorerPageState extends State<FileExplorerPage> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            const Icon(
-                              Icons.more_vert,
-                              color: Colors.black38,
-                            ),
+                            const Icon(Icons.more_vert, color: Colors.black38),
                           ],
                         ),
                       ),
@@ -1590,14 +1637,16 @@ class _FileExplorerPageState extends State<FileExplorerPage> {
   }
 }
 
-bool isImageFile(String fileName) { // detecta imagense 
+bool isImageFile(String fileName) {
+  // detecta imagense
   final imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'];
   final extension = p.extension(fileName).toLowerCase();
 
   return imageExtensions.contains(extension);
 }
 
-void changeServerName(int serverId, String newName) { // cambiar info de pantalla de entrada
+void changeServerName(int serverId, String newName) {
+  // cambiar info de pantalla de entrada
   for (var server in servers) {
     if (server.id == serverId) {
       server = ServerInfo(
@@ -1616,7 +1665,8 @@ void changeServerName(int serverId, String newName) { // cambiar info de pantall
   }
 }
 
-Future<void> saveServers(List<ServerInfo> listaServers) async { // guarda los datos del servers.json
+Future<void> saveServers(List<ServerInfo> listaServers) async {
+  // guarda los datos del servers.json
   try {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/servers.json');
