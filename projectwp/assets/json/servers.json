@@ -12,10 +12,10 @@
 
         {
             "id": 2,
-            "name": "Test",
-            "username": "testuser",
-            "host": "testhost.com",
-            "port": 22,
+            "name": "Monica",
+            "username": "mdominguezaguirre",
+            "host": "ieticloudpro.ieti.cat",
+            "port": 20127,
             "key": "id_rsa"
         }
 
